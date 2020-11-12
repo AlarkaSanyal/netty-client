@@ -3,7 +3,7 @@
 A simple Netty Client application example. This can be played with the project `netty-server` for a demo on how Netty works.
 
 ## POST
-Based on what color is being passed by this app for a rental booking, this server responds with a model of the car.If a response is received, the status is set to booked. 
+Based on what color is being passed by this app for a rental booking, this server responds with a model of the car. If a response is received, the status is set to booked. 
 ````
 URL: http://localhost:8065/api/rental/v1
 Headers: Content-Type, application/json
