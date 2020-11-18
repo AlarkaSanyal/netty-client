@@ -78,6 +78,13 @@ public class NettyClient {
     public Channel getChannel() {
         logger.info("Trying to get channel");
 
+        if (!channelIterator.hasNext()) {
+            // Reset iterator once all available channels have been used in Round-Robin format
+            synchronized (channelIterator) {
+                channelIterator = channels.iterator();
+            }
+        }
+
         Channel channel = null;
         while (channelIterator.hasNext()) {
             logger.info("Iterator has Next");
@@ -92,13 +99,40 @@ public class NettyClient {
                     continue;
                 }
             } else {
+                // Remove the inactive channel removed and
                 removeChannel(newChannel);
+                // Add back a channel to the list and
+                channel = setUpNewChannel();
+                // Reset iterator
+                synchronized (channelIterator) {
+                    channelIterator = channels.iterator();
+                }
             }
         }
+
+        /**
+         * If all available channels in fixedChannelPool are being used, then the following if
+         * condition will be null, and a new channel try to be used from the pool. However,
+         * this will be dependent on the maxPoolSize set for the fixedChannelPool.
+         *
+         * As per documentation:
+         * maxConnections - the number of maximal active connections, once this is reached new tries to acquire a Channel will be delayed until a connection is returned to the pool again.
+         * maxPendingAcquires - the maximum number of pending acquires. Once this is exceed acquire tries will be failed.
+         *
+         * So, we need to handle an exception which might be thrown if the max number of channels are pooled from the fixedChannelPool
+         */
         if (channel == null) {
-            logger.info("Used up all available channels, setting up new set of channels");
-            channel = setUpNewChannel();
-            channelIterator = channels.iterator(); // reset counter
+            logger.info("All available channels  in use, adding a new channel to the list");
+            try {
+                channel = setUpNewChannel();
+            // Reason for the exception handling is explained above
+            } catch (Exception e) {
+                logger.error("Error in acquiring new channel from fixedChannelPool. Current size: " + channels.size(), e);
+            }
+            // Reset iterator
+            synchronized (channelIterator) {
+                channelIterator = channels.iterator();
+            }
         }
         // If still null, then issue
         if (channel == null) {
@@ -121,7 +155,11 @@ public class NettyClient {
             // Setting this server up as Delimiter based.
             DelimiterBasedFrameDecoder decoder = new DelimiterBasedFrameDecoder(350, Boolean.FALSE, carriage_return);
             channel.pipeline().addFirst(decoder);
-            channels.add(channel);
+
+            synchronized (channels) {
+                logger.info("Adding to active channel list of size: " + channels.size());
+                channels.add(channel);
+            }
         } else {
             removeChannel(channel);
         }
