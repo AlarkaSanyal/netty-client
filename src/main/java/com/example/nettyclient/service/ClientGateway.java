@@ -8,6 +8,7 @@ import com.example.nettyclient.model.RentalResponse;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ public class ClientGateway extends ClientChannelHandlerObserver implements Clien
     private CountDownLatch countDownLatch;
     private RentalResponse rentalResponse;
     public static final byte CARRIAGE_RETURN_BYTE = 0X0D;
+    StopWatch watch = new StopWatch();
 
     @Autowired
     private NettyClient nettyClient;
@@ -59,6 +61,7 @@ public class ClientGateway extends ClientChannelHandlerObserver implements Clien
             rentalResponse.setStatus("Not booked");
         }
         rentalResponse.setCarType(rentalRequest.getCarType());
+        logger.info("Total gateway time: " + (int) watch.getTime());
         return rentalResponse;
     }
 
@@ -76,7 +79,9 @@ public class ClientGateway extends ClientChannelHandlerObserver implements Clien
                 channel.pipeline().addLast(id, clientChannelHandler);
 
                 logger.info("Sending data");
+                watch.start();
                 channel.writeAndFlush(byteBuf);
+                watch.stop();
                 logger.info("Sent data");
 
                 countDownLatch.await(timeout, TimeUnit.SECONDS);
