@@ -99,7 +99,7 @@ public class NettyClient {
                     continue;
                 }
             } else {
-                // Remove the inactive channel and
+                // Remove and release the inactive channel and
                 removeChannel(newChannel);
                 synchronized (channelIterator) {
                     channelIterator.remove();
